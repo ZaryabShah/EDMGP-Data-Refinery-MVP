@@ -1,0 +1,4 @@
+BPM:145
+KEY:FMinor
+GENRE:TRAP
+VOCALS:https://www.minimal.audio/stream/samples/packs/elevated+vocals?srsltid=AfmBOoq32wzxGIvmI2BUHUGqhKtFQ2YmHF7C47KfDpaFFXH0Bzmd2kH8

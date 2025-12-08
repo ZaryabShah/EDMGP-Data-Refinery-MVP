@@ -1,0 +1,30 @@
+# EDMGP Data Refinery App - Requirements
+# Compatible with Apple Silicon (M4 MacBook Pro) ARM64 architecture
+# Python 3.9+
+
+# Core dependencies
+streamlit>=1.28.0
+numpy>=1.24.0,<2.0.0
+pandas>=2.0.0
+
+# Audio processing (ARM64 compatible versions)
+librosa>=0.10.1
+soundfile>=0.12.1
+audioread>=3.0.0
+numba>=0.57.0  # Required by librosa, ARM64 compatible
+
+# MIDI processing
+pretty-midi>=0.2.10
+mido>=1.3.0
+
+# String matching for auto-pairing
+rapidfuzz>=3.0.0
+
+# Utilities
+python-dateutil>=2.8.2
+typing-extensions>=4.0.0
+
+# Optional: For better performance on ARM64
+# These will use optimized ARM64 builds
+scipy>=1.10.0
+scikit-learn>=1.3.0

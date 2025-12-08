@@ -1,0 +1,31 @@
+{
+  "uid": "GP_00001",
+  "original_track_title": "Fall Down",
+  "bpm": 145,
+  "key": "Fmin",
+  "time_signature": "4/4",
+  "genre": "trap",
+  "file_count": {
+    "audio": 27,
+    "midi": 7
+  },
+  "tags": {
+    "vocal_rights": "royalty_free",
+    "contains_ai": false,
+    "is_loop": false,
+    "energy_level": 5,
+    "mood": [
+      "aggressive",
+      "dark"
+    ]
+  },
+  "tech_specs": {
+    "sample_rate": 44100,
+    "bit_depth": 24
+  },
+  "processing_log": {
+    "date": "2025-12-08",
+    "engineer": "EDMGP",
+    "status": "verified"
+  }
+}
