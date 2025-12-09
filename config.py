@@ -101,3 +101,57 @@ VOCAL_KEYWORDS = [
     "vocal", "vox", "voice", "singer", "lead_vocal", "harmony",
     "adlib", "choir", "speech", "lyrics"
 ]
+
+
+# NORMALIZATION HELPERS FOR TAXONOMY
+
+def normalize_group(g: str) -> str:
+    """
+    Normalize group name to match taxonomy format
+    
+    Args:
+        g: Group name in any case
+        
+    Returns:
+        Group name in TitleCase format
+    """
+    return g.strip().capitalize()
+
+
+def normalize_instrument(i: str) -> str:
+    """
+    Normalize instrument name to match taxonomy format
+    Handles underscores and multi-word instruments
+    
+    Args:
+        i: Instrument name in any case
+        
+    Returns:
+        Instrument name in taxonomy format (e.g., "Hat_Closed", "Mid_Bass")
+    """
+    # Replace spaces with underscores for consistency
+    normalized = i.strip().replace(" ", "_")
+    
+    # Split by underscore, capitalize each part, rejoin
+    parts = normalized.split("_")
+    parts = [part.capitalize() for part in parts]
+    return "_".join(parts)
+
+
+def normalize_layer(l: str) -> str:
+    """
+    Normalize layer name to match taxonomy format
+    
+    Args:
+        l: Layer name in any case
+        
+    Returns:
+        Layer name in taxonomy format (e.g., "Main", "Layer1", "One_Shot")
+    """
+    # Replace spaces with underscores for consistency
+    normalized = l.strip().replace(" ", "_")
+    
+    # Split by underscore, capitalize each part, rejoin
+    parts = normalized.split("_")
+    parts = [part.capitalize() for part in parts]
+    return "_".join(parts)

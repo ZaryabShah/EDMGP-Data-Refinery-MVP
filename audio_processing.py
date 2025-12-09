@@ -42,7 +42,7 @@ class AudioProcessor:
     
     def load_audio(self, audio_path: Path) -> Tuple[np.ndarray, int]:
         """
-        Load audio file
+        Load audio file and resample to standard sample rate if needed
         
         Args:
             audio_path: Path to audio file
@@ -52,6 +52,32 @@ class AudioProcessor:
         """
         # Load with soundfile (preserves multi-channel)
         audio_data, sample_rate = sf.read(str(audio_path), dtype='float32')
+        
+        # Resample to default sample rate if different
+        if sample_rate != config.DEFAULT_SAMPLE_RATE:
+            print(f"  ℹ Resampling from {sample_rate} Hz to {config.DEFAULT_SAMPLE_RATE} Hz")
+            
+            # Handle mono vs stereo
+            if audio_data.ndim == 1:
+                # Mono audio
+                audio_data = librosa.resample(
+                    audio_data,
+                    orig_sr=sample_rate,
+                    target_sr=config.DEFAULT_SAMPLE_RATE
+                )
+            else:
+                # Stereo/multi-channel - resample each channel
+                resampled_channels = []
+                for channel_idx in range(audio_data.shape[1]):
+                    resampled_channel = librosa.resample(
+                        audio_data[:, channel_idx],
+                        orig_sr=sample_rate,
+                        target_sr=config.DEFAULT_SAMPLE_RATE
+                    )
+                    resampled_channels.append(resampled_channel)
+                audio_data = np.column_stack(resampled_channels)
+            
+            sample_rate = config.DEFAULT_SAMPLE_RATE
         
         self.audio_data = audio_data
         self.sample_rate = sample_rate
@@ -240,7 +266,13 @@ class MIDIProcessor:
         time_sig = self.get_time_signature(midi_data)
         
         # Check if has tempo map (multiple tempo changes)
-        has_tempo_map = len(midi_data.get_tempo_changes()[0]) > 1
+        tempo_times, tempos = midi_data.get_tempo_changes()
+        has_tempo_map = len(tempo_times) > 1
+        
+        # Warn if complex tempo map exists
+        if has_tempo_map:
+            print(f"  ⚠ MIDI has {len(tempo_times)} tempo changes (using first: {tempo:.1f} BPM)")
+            print(f"    Note: Complex tempo maps are currently flattened to single tempo")
         
         return MIDIInfo(
             duration=midi_data.get_end_time(),
@@ -366,16 +398,28 @@ class MIDIProcessor:
                 name=instrument.name
             )
             
-            # Filter and shift notes
+            # Filter and shift notes (including overlapping notes)
             for note in instrument.notes:
-                if start_time <= note.start < end_time:
-                    new_note = pretty_midi.Note(
-                        velocity=note.velocity,
-                        pitch=note.pitch,
-                        start=max(0, note.start - start_time),
-                        end=min(end_time - start_time, note.end - start_time)
-                    )
-                    new_instrument.notes.append(new_note)
+                # Skip notes that don't overlap with the time window
+                # A note overlaps if its end is after the start AND its start is before the end
+                if note.end <= start_time or note.start >= end_time:
+                    continue
+                
+                # Clip the note to the time window and shift to start at 0
+                new_start = max(note.start, start_time) - start_time
+                new_end = min(note.end, end_time) - start_time
+                
+                # Skip if clipping resulted in zero-length note
+                if new_end <= new_start:
+                    continue
+                
+                new_note = pretty_midi.Note(
+                    velocity=note.velocity,
+                    pitch=note.pitch,
+                    start=new_start,
+                    end=new_end
+                )
+                new_instrument.notes.append(new_note)
             
             # Only add instrument if it has notes
             if new_instrument.notes:

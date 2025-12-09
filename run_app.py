@@ -126,10 +126,15 @@ class DataRefineryApp:
                 group, instrument, layer = stem_labels[pair.audio.filename]
             else:
                 # Default labels (would come from UI in full app)
-                group = "drums"  # Default
-                instrument = "kick"
-                layer = "main"
+                group = "Drums"  # Default (using taxonomy format)
+                instrument = "Kick"
+                layer = "Main"
                 print(f"  ⚠ Using default labels: {group}/{instrument}/{layer}")
+            
+            # Normalize labels to match taxonomy format
+            group = config.normalize_group(group)
+            instrument = config.normalize_instrument(instrument)
+            layer = config.normalize_layer(layer)
             
             # Determine end bars if not specified
             if end_bars is None:

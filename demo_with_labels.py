@@ -59,14 +59,14 @@ stem_labels = {
     "_ riser 2.wav": ("fx", "riser", "main"),
 }
 
-# Process track with proper labeling
+# Process track with proper labels
 app.process_track(
-    output_dir=r"c:\Users\zarya\Desktop\Python\Music_upwork_Josh\Clean_Dataset_Staging_Labeled",
+    output_dir=r"c:\Users\zarya\Desktop\Python\Music_upwork_Josh\Clean_Dataset_Staging",
     track_title="Fall Down",
     genre="trap",
     bpm=145,
     key="Fmin",
-    vocal_rights="royalty_free",
+    vocal_rights="Royalty_Free",
     energy_level=5,
     mood=["aggressive", "dark"],
     start_bars=0,
@@ -74,5 +74,5 @@ app.process_track(
     stem_labels=stem_labels
 )
 
-print("\n✅ Demo completed with proper stem labeling!")
-print("Check output in: Clean_Dataset_Staging_Labeled/")
+print("\n✅ Demo complete!")
+print("Check output in: Clean_Dataset_Staging/")
