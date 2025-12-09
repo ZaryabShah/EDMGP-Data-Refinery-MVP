@@ -282,7 +282,7 @@ def render_step1_ingestion():
                     original_count = len(ingester.pairs)
                     ingester.pairs = [
                         pair for pair in ingester.pairs 
-                        if not ingester.is_vocal_file(pair.audio.filename)
+                        if not ingester.is_vocal_file(pair.audio)
                     ]
                     filtered_count = original_count - len(ingester.pairs)
                     
@@ -706,7 +706,7 @@ def render_step3_export():
                 mood=metadata['mood']
             )
             
-            export_session.export_metadata(track_metadata, uid)
+            export_session.finalize_track(track_metadata)
             
             # Complete
             progress_bar.progress(100)
