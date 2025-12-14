@@ -198,7 +198,7 @@ class FileExporter:
         Export MIDI file with proper naming
         
         Args:
-            midi_data: PrettyMIDI object
+            midi_data: PrettyMIDI object or Path to MIDI file
             track_path: Track directory path
             uid: Unique identifier
             group: Stem group
@@ -210,8 +210,15 @@ class FileExporter:
         filename = self.generate_midi_filename(uid, group, instrument)
         output_path = track_path / "MIDI" / filename
         
-        # Save MIDI
-        midi_data.write(str(output_path))
+        # Handle both PrettyMIDI objects and Path objects (V1.1 - Full Track Mode)
+        if isinstance(midi_data, Path):
+            # Copy existing MIDI file
+            import shutil
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(midi_data, output_path)
+        else:
+            # Save PrettyMIDI object (Loop Slicer Mode)
+            midi_data.write(str(output_path))
         
         return output_path
     

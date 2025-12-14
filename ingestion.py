@@ -86,7 +86,8 @@ class FileIngester:
         
     def scan_files(self) -> Tuple[List[AudioFile], List[MIDIFile]]:
         """
-        Scan the source directory for audio and MIDI files
+        Scan the source directory for audio and MIDI files (recursive and case-insensitive)
+        V1.1: Now fully recursive with case-insensitive extension matching
         
         Returns:
             Tuple of (audio_files, midi_files)
@@ -94,11 +95,11 @@ class FileIngester:
         audio_files = []
         midi_files = []
         
-        # Walk through directory
+        # Walk through directory recursively (including all subfolders)
         for root, dirs, files in os.walk(self.source_dir):
             for file in files:
                 file_path = Path(root) / file
-                ext = file_path.suffix.lower()
+                ext = file_path.suffix.lower()  # Case-insensitive extension check
                 
                 # Check for audio files
                 if ext in config.SUPPORTED_AUDIO_FORMATS:
@@ -108,7 +109,7 @@ class FileIngester:
                     )
                     audio_files.append(audio_file)
                 
-                # Check for MIDI files
+                # Check for MIDI files (case-insensitive: .mid, .MID, .midi, .MIDI)
                 elif ext in config.SUPPORTED_MIDI_FORMATS:
                     midi_file = MIDIFile(
                         path=file_path,
@@ -140,6 +141,34 @@ class FileIngester:
             if keyword.replace('_', ' ') in normalized:
                 return True
         
+        return False
+    
+    def flag_vocal_files(self) -> List[int]:
+        """
+        Flag vocal files in pairs list (V1.1 - for visual highlighting)
+        
+        Returns:
+            List of indices in self.pairs that contain vocal files
+        """
+        vocal_indices = []
+        for idx, pair in enumerate(self.pairs):
+            if self.is_vocal_file(pair.audio):
+                vocal_indices.append(idx)
+        return vocal_indices
+    
+    def remove_pair_by_index(self, index: int) -> bool:
+        """
+        Remove a pair from the pairs list by index (V1.1 - manual deletion)
+        
+        Args:
+            index: Index of pair to remove
+            
+        Returns:
+            True if successfully removed, False otherwise
+        """
+        if 0 <= index < len(self.pairs):
+            del self.pairs[index]
+            return True
         return False
     
     def find_best_midi_match(self, audio_file: AudioFile) -> Optional[Tuple[MIDIFile, float]]:

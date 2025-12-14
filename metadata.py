@@ -108,82 +108,77 @@ class MetadataGenerator:
         self,
         uid: str,
         original_title: str,
+        original_folder: str,
         bpm: float,
         key: str,
-        genre: str,
+        genre_parent: str,
+        genre_sub: str,
         audio_count: int,
         midi_count: int,
         vocal_rights: str,
         energy_level: int,
         mood: List[str],
+        stems_manifest: List[Dict[str, Any]] = None,
         sample_rate: int = config.DEFAULT_SAMPLE_RATE,
         bit_depth: int = config.DEFAULT_BIT_DEPTH,
         time_signature: str = "4/4",
         contains_ai: bool = False,
-        is_loop: bool = False,
-        engineer: str = "EDMGP"
-    ) -> TrackMetadata:
+        app_version: str = "v1.1"
+    ) -> Dict[str, Any]:
         """
-        Create complete track metadata
+        Create complete track metadata (Schema V2)
         
         Args:
             uid: Unique identifier
             original_title: Original track name
+            original_folder: Original folder name
             bpm: Tempo in BPM
             key: Musical key (e.g., "Fmin")
-            genre: Genre from taxonomy
+            genre_parent: Parent genre category
+            genre_sub: Sub-genre
             audio_count: Number of audio files
             midi_count: Number of MIDI files
             vocal_rights: "exclusive" or "royalty_free"
             energy_level: Energy level (1-5)
             mood: List of mood tags
+            stems_manifest: List of stem metadata dictionaries
             sample_rate: Sample rate
             bit_depth: Bit depth
             time_signature: Time signature
             contains_ai: Whether track contains AI-generated content
-            is_loop: Whether track is a loop
-            engineer: Processing engineer name
+            app_version: Application version
             
         Returns:
-            TrackMetadata object
+            Dictionary matching metadata schema v2
         """
-        metadata = TrackMetadata(
-            uid=uid,
-            original_track_title=original_title,
-            bpm=bpm,
-            key=key,
-            time_signature=time_signature,
-            genre=genre,
-            file_count={
-                "audio": audio_count,
-                "midi": midi_count
-            },
-            tags={
-                "vocal_rights": vocal_rights.lower(),
-                "contains_ai": contains_ai,
-                "is_loop": is_loop,
+        metadata = {
+            "uid": uid,
+            "original_folder_name": original_folder,
+            "global_attributes": {
+                "genre_parent": genre_parent.lower().replace(" ", "_"),
+                "genre_sub": genre_sub.lower().replace(" ", "_"),
+                "bpm": bpm,
+                "key": key,
                 "energy_level": energy_level,
-                "mood": mood
+                "moods": [m.lower() for m in mood],
+                "vocal_rights": vocal_rights.lower(),
+                "contains_ai": contains_ai
             },
-            tech_specs={
-                "sample_rate": sample_rate,
-                "bit_depth": bit_depth
-            },
-            processing_log={
-                "date": datetime.now().strftime("%Y-%m-%d"),
-                "engineer": engineer,
-                "status": "verified"
+            "stems_manifest": stems_manifest if stems_manifest else [],
+            "processing_info": {
+                "date_processed": datetime.now().strftime("%Y-%m-%d"),
+                "app_version": app_version
             }
-        )
+        }
         
         return metadata
     
-    def validate_metadata(self, metadata: TrackMetadata) -> List[str]:
+    def validate_metadata_v2(self, metadata: Dict[str, Any]) -> List[str]:
         """
-        Validate metadata against schema and rules
+        Validate metadata against schema v2
         
         Args:
-            metadata: TrackMetadata to validate
+            metadata: Metadata dictionary to validate
             
         Returns:
             List of validation errors (empty if valid)
@@ -191,39 +186,37 @@ class MetadataGenerator:
         errors = []
         
         # Validate UID format
-        if not metadata.uid.startswith(config.UID_PREFIX + "_"):
+        uid = metadata.get("uid", "")
+        if not uid.startswith(config.UID_PREFIX + "_"):
             errors.append(f"UID must start with '{config.UID_PREFIX}_'")
         
+        # Validate global attributes
+        attrs = metadata.get("global_attributes", {})
+        
         # Validate BPM range
-        if not (40 <= metadata.bpm <= 300):
-            errors.append(f"BPM {metadata.bpm} is outside valid range (40-300)")
+        bpm = attrs.get("bpm", 0)
+        if not (40 <= bpm <= 300):
+            errors.append(f"BPM {bpm} is outside valid range (40-300)")
         
         # Validate genre
-        if metadata.genre not in [g.lower() for g in config.GENRES]:
-            errors.append(f"Genre '{metadata.genre}' not in taxonomy")
+        genre_parent = attrs.get("genre_parent", "")
+        if genre_parent not in config.PARENT_GENRES:
+            errors.append(f"Genre parent '{genre_parent}' not in taxonomy")
         
         # Validate vocal rights
-        vocal_rights = metadata.tags.get("vocal_rights", "")
+        vocal_rights = attrs.get("vocal_rights", "")
         if vocal_rights not in ["exclusive", "royalty_free"]:
             errors.append(f"vocal_rights must be 'exclusive' or 'royalty_free'")
         
         # Validate energy level
-        energy = metadata.tags.get("energy_level", 0)
+        energy = attrs.get("energy_level", 0)
         if not (1 <= energy <= 5):
             errors.append(f"energy_level must be 1-5")
         
         # Validate mood tags
-        mood = metadata.tags.get("mood", [])
-        if len(mood) > 2:
+        moods = attrs.get("moods", [])
+        if len(moods) > 2:
             errors.append("Maximum 2 mood tags allowed")
-        
-        for m in mood:
-            if m.capitalize() not in config.MOODS:
-                errors.append(f"Mood '{m}' not in taxonomy")
-        
-        # Validate sample rate
-        if metadata.tech_specs["sample_rate"] not in [44100, 48000, 96000]:
-            errors.append(f"Sample rate {metadata.tech_specs['sample_rate']} not standard")
         
         return errors
 
