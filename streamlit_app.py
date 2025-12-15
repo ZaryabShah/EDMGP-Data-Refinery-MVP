@@ -30,19 +30,99 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS (V1.1 - Fixed text visibility + vocal flagging)
-st.markdown("""
+# Theme-aware Custom CSS
+def apply_theme_css(theme="dark"):
+    """Apply theme-specific CSS styles"""
+    if theme == "dark":
+        # Dark Theme - Default
+        css = """
 <style>
+    /* Dark Theme */
+    .stApp {
+        background-color: #0e1117;
+    }
     .main-header {
         font-size: 2.5rem;
         font-weight: 700;
-        color: #1f77b4;
+        color: #58a6ff;
+        margin-bottom: 1rem;
+        text-shadow: 0 0 10px rgba(88, 166, 255, 0.3);
+    }
+    .sub-header {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #f78166;
+        margin-top: 1rem;
+        margin-bottom: 0.5rem;
+    }
+    .info-box {
+        background-color: #1c2433;
+        padding: 0.8rem;
+        border-radius: 0.5rem;
+        border-left: 4px solid #58a6ff;
+        margin: 0.5rem 0;
+        color: #c9d1d9 !important;
+    }
+    .warning-box {
+        background-color: #2d2205;
+        padding: 0.8rem;
+        border-radius: 0.5rem;
+        border-left: 4px solid #f0ad4e;
+        margin: 0.5rem 0;
+        color: #f0ad4e !important;
+    }
+    .success-box {
+        background-color: #0d2818;
+        padding: 0.8rem;
+        border-radius: 0.5rem;
+        border-left: 4px solid #56d364;
+        margin: 0.5rem 0;
+        color: #aff5b4 !important;
+    }
+    .vocal-flag-box {
+        background-color: #2d1417;
+        padding: 0.8rem;
+        border-radius: 0.5rem;
+        border-left: 4px solid #ff6b6b;
+        margin: 0.5rem 0;
+        color: #ffa198 !important;
+    }
+    /* Dark theme text colors */
+    .stMarkdown, .stMarkdown p, .stMarkdown div, .stMarkdown span {
+        color: #c9d1d9 !important;
+    }
+    label, .stTextInput label, .stSelectbox label, .stNumberInput label {
+        color: #c9d1d9 !important;
+    }
+    .stTabs [data-baseweb="tab-list"] {
+        background-color: #161b22;
+    }
+    .stTabs [data-baseweb="tab"] {
+        color: #8b949e;
+    }
+    .stTabs [aria-selected="true"] {
+        color: #58a6ff !important;
+    }
+</style>
+"""
+    else:
+        # Light Theme
+        css = """
+<style>
+    /* Light Theme */
+    .stApp {
+        background-color: #ffffff;
+    }
+    .main-header {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #0366d6;
         margin-bottom: 1rem;
     }
     .sub-header {
         font-size: 1.5rem;
         font-weight: 600;
-        color: #ff7f0e;
+        color: #d73a49;
         margin-top: 1rem;
         margin-bottom: 0.5rem;
     }
@@ -50,44 +130,54 @@ st.markdown("""
         background-color: #e7f3ff;
         padding: 0.8rem;
         border-radius: 0.5rem;
-        border-left: 4px solid #1f77b4;
+        border-left: 4px solid #0366d6;
         margin: 0.5rem 0;
-        color: #000000 !important;
+        color: #24292e !important;
     }
     .warning-box {
-        background-color: #fff3cd;
+        background-color: #fffbdd;
         padding: 0.8rem;
         border-radius: 0.5rem;
-        border-left: 4px solid #ffc107;
+        border-left: 4px solid #f9c513;
         margin: 0.5rem 0;
-        color: #000000 !important;
+        color: #735c0f !important;
     }
     .success-box {
-        background-color: #d4edda;
+        background-color: #dcffe4;
         padding: 0.8rem;
         border-radius: 0.5rem;
-        border-left: 4px solid #28a745;
+        border-left: 4px solid #2da44e;
         margin: 0.5rem 0;
-        color: #000000 !important;
+        color: #1a7f37 !important;
     }
     .vocal-flag-box {
         background-color: #ffe0e0;
         padding: 0.8rem;
         border-radius: 0.5rem;
-        border-left: 4px solid #ff6b6b;
+        border-left: 4px solid #d73a49;
         margin: 0.5rem 0;
-        color: #000000 !important;
+        color: #b31d28 !important;
     }
-    /* Fix text visibility */
+    /* Light theme text colors */
     .stMarkdown, .stMarkdown p, .stMarkdown div, .stMarkdown span {
-        color: #000000 !important;
+        color: #24292e !important;
     }
-    /* Ensure buttons and labels are visible */
-    label, p, span, div {
-        color: #000000 !important;
+    label, .stTextInput label, .stSelectbox label, .stNumberInput label {
+        color: #24292e !important;
+    }
+    .stTabs [data-baseweb="tab-list"] {
+        background-color: #f6f8fa;
+    }
+    .stTabs [data-baseweb="tab"] {
+        color: #57606a;
+    }
+    .stTabs [aria-selected="true"] {
+        color: #0366d6 !important;
     }
 </style>
-""", unsafe_allow_html=True)
+"""
+    
+    st.markdown(css, unsafe_allow_html=True)
 
 
 def initialize_session_state():
@@ -107,7 +197,8 @@ def initialize_session_state():
         'deleted_pairs': set(),
         'custom_instruments': {},
         'manual_uid': "",
-        'vocal_flagged_indices': set()
+        'vocal_flagged_indices': set(),
+        'theme': 'dark'  # Default to dark theme
     }
     
     for key, value in defaults.items():
@@ -173,6 +264,21 @@ def render_sidebar():
     """Render sidebar (V1.1 - Updated with manual UID and parent/child genres)"""
     with st.sidebar:
         st.markdown('<p class="main-header">⚙️ Configuration</p>', unsafe_allow_html=True)
+        
+        # Theme Switcher
+        st.markdown("### 🎨 Theme")
+        theme = st.radio(
+            "Color Mode",
+            options=["dark", "light"],
+            index=0 if st.session_state.theme == "dark" else 1,
+            format_func=lambda x: "🌙 Dark Mode" if x == "dark" else "☀️ Light Mode",
+            help="Switch between dark and light color themes"
+        )
+        if theme != st.session_state.theme:
+            st.session_state.theme = theme
+            st.rerun()
+        
+        st.markdown("---")
         
         # Vocal Rights
         st.markdown("### Vocal Rights Gate")
@@ -873,6 +979,9 @@ def render_step3_export():
 def main():
     """Main application (V1.1)"""
     initialize_session_state()
+    
+    # Apply theme-specific CSS
+    apply_theme_css(st.session_state.theme)
     
     # Header
     st.markdown('<p class="main-header">🎵 EDMGP Data Refinery V1.1</p>', unsafe_allow_html=True)
