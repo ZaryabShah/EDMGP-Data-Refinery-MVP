@@ -174,7 +174,12 @@ class FileExporter:
         
         # Generate filename
         filename = self.generate_audio_filename(uid, group, instrument, layer)
-        output_path = track_path / "Audio" / filename
+        
+        # V1.3 FIX: Route Mix/Master files to Masters folder instead of Audio
+        if group.lower() == "mix":
+            output_path = track_path / "Masters" / filename
+        else:
+            output_path = track_path / "Audio" / filename
         
         # Save audio
         self.audio_processor.save_audio(

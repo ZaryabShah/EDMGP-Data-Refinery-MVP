@@ -80,12 +80,13 @@ def apply_theme_css(theme="dark"):
         color: #aff5b4 !important;
     }
     .vocal-flag-box {
-        background-color: #2d1417;
+        background-color: #ff4444;
         padding: 0.8rem;
         border-radius: 0.5rem;
-        border-left: 4px solid #ff6b6b;
+        border-left: 6px solid #cc0000;
         margin: 0.5rem 0;
-        color: #ffa198 !important;
+        color: #ffffff !important;
+        font-weight: 600;
     }
     /* Dark theme text colors */
     .stMarkdown, .stMarkdown p, .stMarkdown div, .stMarkdown span {
@@ -198,7 +199,8 @@ def initialize_session_state():
         'custom_instruments': {},
         'manual_uid': "",
         'vocal_flagged_indices': set(),
-        'theme': 'dark'  # Default to dark theme
+        'theme': 'dark',  # Default to dark theme
+        'lyrics_file': None  # V1.3: Uploaded lyrics file
     }
     
     for key, value in defaults.items():
@@ -232,8 +234,8 @@ def plot_waveform_with_grid(audio_path, midi_path=None, bpm=None, start_bars=0, 
         start_time = start_bars * bar_duration
         end_time = end_bars * bar_duration
         
-        # Create figure
-        fig, ax = plt.subplots(figsize=(14, 4))
+        # Create figure - V1.3 FIX: Larger size for better transient visibility
+        fig, ax = plt.subplots(figsize=(18, 6))
         librosa.display.waveshow(audio_mono, sr=sr, ax=ax, alpha=0.6)
         
         # Add beat grid
@@ -292,6 +294,19 @@ def render_sidebar():
         
         if vocal_rights == "Royalty_Free":
             st.warning("🎤 Vocal stems will be flagged in red")
+        
+        # V1.3 FIX #3: Lyrics Upload (only for Exclusive vocals)
+        if vocal_rights == "Exclusive":
+            st.markdown("### 📝 Lyrics Upload")
+            uploaded_lyrics = st.file_uploader(
+                "Upload Lyrics (optional)",
+                type=["txt", "docx", "pdf"],
+                help="Upload lyrics for exclusive vocal tracks",
+                key="lyrics_upload"
+            )
+            if uploaded_lyrics:
+                st.session_state.lyrics_file = uploaded_lyrics
+                st.success(f"✅ Lyrics uploaded: {uploaded_lyrics.name}")
         
         st.markdown("---")
         
@@ -442,11 +457,19 @@ def render_step1_ingestion():
             st.info("No active files. All have been deleted.")
         else:
             for display_num, (original_idx, pair) in enumerate(active_pairs, 1):
-                # Check if vocal
+                # Check if vocal (V1.3 FIX #4: Enhanced vocal detection)
                 is_vocal = original_idx in st.session_state.vocal_flagged_indices
                 
-                # Use appropriate style
-                box_class = "vocal-flag-box" if is_vocal else "info-box"
+                # V1.3 FIX #4: Use strong red highlight for vocal files
+                if is_vocal:
+                    st.markdown(f"""
+                    <div style='background-color: #ff4444; padding: 10px; border-radius: 5px; 
+                                border-left: 6px solid #cc0000; margin: 5px 0;'>
+                        <span style='color: white; font-weight: 600;'>
+                            🎤 VOCAL FILE - #{display_num}: {pair.audio.filename}
+                        </span>
+                    </div>
+                    """, unsafe_allow_html=True)
                 
                 col1, col2, col3, col4, col5 = st.columns([0.5, 2.5, 2, 1.5, 0.5])
                 
@@ -456,7 +479,8 @@ def render_step1_ingestion():
                 with col2:
                     icon = "🎤 " if is_vocal else ""
                     status = "✅" if pair.audio.filename in st.session_state.stem_labels else "⏳"
-                    st.markdown(f"{icon}**{pair.audio.filename}** {status}")
+                    display_name = f"**{pair.audio.filename}**" if not is_vocal else pair.audio.filename
+                    st.markdown(f"{icon}{display_name} {status}")
                 
                 with col3:
                     midi_text = pair.midi.filename if pair.midi else "❌ No MIDI"
@@ -952,6 +976,42 @@ def render_step3_export():
             metadata_path.parent.mkdir(parents=True, exist_ok=True)
             with open(metadata_path, 'w', encoding='utf-8') as f:
                 json.dump(track_metadata, f, indent=2)
+            
+            # V1.3 FIX #3: Save lyrics file if uploaded
+            if st.session_state.lyrics_file is not None:
+                status_text.text("Saving lyrics...")
+                lyrics_path = track_path / "Metadata" / f"{uid}_lyrics.txt"
+                
+                # Extract text based on file type
+                lyrics_content = ""
+                file_extension = st.session_state.lyrics_file.name.split('.')[-1].lower()
+                
+                if file_extension == "txt":
+                    # Plain text file
+                    lyrics_content = st.session_state.lyrics_file.getvalue().decode('utf-8')
+                elif file_extension == "docx":
+                    # Word document
+                    try:
+                        import docx2txt
+                        lyrics_content = docx2txt.process(st.session_state.lyrics_file)
+                    except ImportError:
+                        st.warning("⚠️ docx2txt not installed. Install with: pip install docx2txt")
+                        lyrics_content = "[DOCX file - could not extract text. Please install docx2txt]"
+                elif file_extension == "pdf":
+                    # PDF file
+                    try:
+                        import PyPDF2
+                        pdf_reader = PyPDF2.PdfReader(st.session_state.lyrics_file)
+                        lyrics_content = "\\n".join([page.extract_text() for page in pdf_reader.pages])
+                    except ImportError:
+                        st.warning("⚠️ PyPDF2 not installed. Install with: pip install PyPDF2")
+                        lyrics_content = "[PDF file - could not extract text. Please install PyPDF2]"
+                
+                # Save lyrics to file
+                with open(lyrics_path, 'w', encoding='utf-8') as f:
+                    f.write(lyrics_content)
+                
+                st.success(f"✅ Lyrics saved: {lyrics_path.name}")
             
             # Complete
             progress_bar.progress(100)
