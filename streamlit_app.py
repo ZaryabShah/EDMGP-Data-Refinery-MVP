@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 import librosa
 import librosa.display
 import soundfile as sf
+import base64
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent))
@@ -21,6 +22,134 @@ from ingestion import FileIngester
 from audio_processing import AudioProcessor, MIDIProcessor, AlignedSlicer
 from metadata import MetadataGenerator, StemValidator
 from export import ExportSession
+
+# WaveSurfer Audio Player Component
+def wavesurfer_player(audio_path: Path, height: int = 128, key: str = None, enable_regions: bool = False, start_bar: float = 0, end_bar: float = 16, bpm: float = 140):
+    """
+    Custom WaveSurfer.js audio player with waveform visualization
+    
+    Args:
+        audio_path: Path to audio file
+        height: Waveform height in pixels
+        key: Unique key for component
+        enable_regions: Enable region selection for Loop Slicer
+        start_bar: Start bar for region (if enabled)
+        end_bar: End bar for region (if enabled)
+        bpm: BPM for time calculations
+    """
+    # V1.3 Performance: Use cached base64 encoding
+    cache_key = str(audio_path)
+    if cache_key not in st.session_state.wavesurfer_b64_cache:
+        with open(audio_path, 'rb') as f:
+            audio_bytes = f.read()
+        st.session_state.wavesurfer_b64_cache[cache_key] = base64.b64encode(audio_bytes).decode()
+    
+    audio_b64 = st.session_state.wavesurfer_b64_cache[cache_key]
+    
+    # Calculate region times if enabled
+    region_start = (start_bar * 4 * 60 / bpm) if enable_regions else 0
+    region_end = (end_bar * 4 * 60 / bpm) if enable_regions else 0
+    
+    # Generate unique component ID
+    component_id = f"wavesurfer_{key}" if key else f"wavesurfer_{hash(str(audio_path))}"
+    
+    # HTML/JavaScript for WaveSurfer
+    html_code = f"""
+    <div id="{component_id}" style="width: 100%; margin: 10px 0;"></div>
+    <div id="controls_{component_id}" style="margin-top: 10px;">
+        <button onclick="ws_{component_id}.playPause()" style="padding: 8px 16px; margin: 2px; cursor: pointer; background: #1f77b4; color: white; border: none; border-radius: 4px;">
+            ▶️ Play/Pause
+        </button>
+        <button onclick="ws_{component_id}.stop()" style="padding: 8px 16px; margin: 2px; cursor: pointer; background: #d73a49; color: white; border: none; border-radius: 4px;">
+            ⏹️ Stop
+        </button>
+        <button onclick="window.zoomLevel_{component_id} = Math.min(window.zoomLevel_{component_id} * 2, 800); window.ws_{component_id}.zoom(window.zoomLevel_{component_id});" style="padding: 8px 16px; margin: 2px; cursor: pointer; background: #28a745; color: white; border: none; border-radius: 4px;">
+            🔍 Zoom In
+        </button>
+        <button onclick="window.zoomLevel_{component_id} = Math.max(window.zoomLevel_{component_id} / 2, 20); window.ws_{component_id}.zoom(window.zoomLevel_{component_id});" style="padding: 8px 16px; margin: 2px; cursor: pointer; background: #28a745; color: white; border: none; border-radius: 4px;">
+            🔍 Zoom Out
+        </button>
+        <span id="time_{component_id}" style="margin-left: 15px; font-weight: bold;">0:00 / 0:00</span>
+    </div>
+    
+    <script src="https://unpkg.com/wavesurfer.js@7"></script>
+    <script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/regions.js"></script>
+    <script>
+        (function() {{
+            // Wait for WaveSurfer to load
+            if (typeof WaveSurfer === 'undefined') {{
+                setTimeout(arguments.callee, 100);
+                return;
+            }}
+            
+            // Clear existing instance if any
+            if (window.ws_{component_id}) {{
+                window.ws_{component_id}.destroy();
+            }}
+            
+            // V1.3 FIX: Track zoom level separately (params.minPxPerSec is undefined in v7)
+            let zoomLevel_{component_id} = 50;
+            
+            // Create WaveSurfer instance
+            const ws_{component_id} = WaveSurfer.create({{
+                container: '#{component_id}',
+                waveColor: '#4a9eff',
+                progressColor: '#1f77b4',
+                cursorColor: '#ff6b6b',
+                barWidth: 2,
+                barGap: 1,
+                height: {height},
+                normalize: true,
+                backend: 'WebAudio',
+                minPxPerSec: zoomLevel_{component_id}
+            }});
+            
+            // Store globally so buttons can access
+            window.ws_{component_id} = ws_{component_id};
+            window.zoomLevel_{component_id} = zoomLevel_{component_id};
+            
+            // Load audio from base64
+            const audioData = 'data:audio/wav;base64,{audio_b64}';
+            ws_{component_id}.load(audioData);
+            
+            // Update time display
+            ws_{component_id}.on('audioprocess', function() {{
+                const current = ws_{component_id}.getCurrentTime();
+                const duration = ws_{component_id}.getDuration();
+                document.getElementById('time_{component_id}').textContent = 
+                    formatTime(current) + ' / ' + formatTime(duration);
+            }});
+            
+            ws_{component_id}.on('ready', function() {{
+                const duration = ws_{component_id}.getDuration();
+                document.getElementById('time_{component_id}').textContent = 
+                    '0:00 / ' + formatTime(duration);
+                    
+                {f'''
+                // Add region for Loop Slicer mode
+                if ({str(enable_regions).lower()}) {{
+                    const regionsPlugin = ws_{component_id}.registerPlugin(WaveSurfer.Regions.create());
+                    regionsPlugin.addRegion({{
+                        start: {region_start},
+                        end: {region_end},
+                        color: 'rgba(0, 255, 0, 0.2)',
+                        drag: true,
+                        resize: true
+                    }});
+                }}
+                ''' if enable_regions else ''}
+            }});
+            
+            function formatTime(seconds) {{
+                const mins = Math.floor(seconds / 60);
+                const secs = Math.floor(seconds % 60);
+                return mins + ':' + (secs < 10 ? '0' : '') + secs;
+            }}
+        }})();
+    </script>
+    """
+    
+    st.components.v1.html(html_code, height=height + 80, scrolling=False)
 
 # Page configuration
 st.set_page_config(
@@ -200,7 +329,9 @@ def initialize_session_state():
         'manual_uid': "",
         'vocal_flagged_indices': set(),
         'theme': 'dark',  # Default to dark theme
-        'lyrics_file': None  # V1.3: Uploaded lyrics file
+        'lyrics_file': None,  # V1.3: Uploaded lyrics file
+        'preview_ingest_idx': None,  # V1.3: Selected file for preview in Step 1
+        'wavesurfer_b64_cache': {}  # V1.3: Cache for base64 encoded audio
     }
     
     for key, value in defaults.items():
@@ -279,6 +410,16 @@ def render_sidebar():
         if theme != st.session_state.theme:
             st.session_state.theme = theme
             st.rerun()
+        
+        st.markdown("---")
+        
+        # V1.3 Performance: Clear audio cache button
+        if st.session_state.wavesurfer_b64_cache:
+            cache_size = len(st.session_state.wavesurfer_b64_cache)
+            if st.button(f"🗑️ Clear Audio Cache ({cache_size} files)", help="Free memory by clearing cached audio data"):
+                st.session_state.wavesurfer_b64_cache = {}
+                st.success("Cache cleared!")
+                st.rerun()
         
         st.markdown("---")
         
@@ -488,8 +629,10 @@ def render_step1_ingestion():
                     st.markdown(f"{midi_text} {score_text}")
                 
                 with col4:
-                    # Audio playback (V1.1)
-                    st.audio(str(pair.audio.path), format='audio/wav')
+                    # V1.3 Performance: Single shared preview instead of per-row player
+                    if st.button("▶️ Preview", key=f"preview_btn_{original_idx}", help="Preview this audio file"):
+                        st.session_state.preview_ingest_idx = original_idx
+                        st.rerun()
                 
                 with col5:
                     # Delete button (V1.1)
@@ -499,6 +642,20 @@ def render_step1_ingestion():
                         if pair.audio.filename in st.session_state.stem_labels:
                             del st.session_state.stem_labels[pair.audio.filename]
                         st.rerun()
+        
+        # V1.3 Performance: Single shared preview player for selected file
+        preview_idx = st.session_state.get('preview_ingest_idx')
+        if preview_idx is not None and preview_idx not in st.session_state.deleted_pairs:
+            preview_pair = st.session_state.ingester.pairs[preview_idx]
+            st.markdown("---")
+            st.markdown("### 🎵 Audio Preview (Waveform with Zoom)")
+            st.caption(f"**File:** {preview_pair.audio.filename}")
+            wavesurfer_player(
+                audio_path=preview_pair.audio.path,
+                height=120,
+                key=f"ingest_preview_{preview_idx}",
+                enable_regions=False
+            )
         
         # Summary
         st.markdown("---")
@@ -689,19 +846,23 @@ def render_step2_labeling():
     
     st.markdown("---")
     
-    # File info and audio playback
+    # File info
     st.markdown("### Current File")
-    col1, col2 = st.columns([3, 1])
-    with col1:
-        st.markdown(f"**Audio:** `{current_pair.audio.filename}`")
-        if current_pair.midi:
-            st.markdown(f"**MIDI:** `{current_pair.midi.filename}` ({current_pair.match_score:.0f}% match)")
-        else:
-            st.warning("⚠️ No MIDI paired")
+    st.markdown(f"**Audio:** `{current_pair.audio.filename}`")
+    if current_pair.midi:
+        st.markdown(f"**MIDI:** `{current_pair.midi.filename}` ({current_pair.match_score:.0f}% match)")
+    else:
+        st.warning("⚠️ No MIDI paired")
     
-    with col2:
-        # Audio playback
-        st.audio(str(current_pair.audio.path), format='audio/wav')
+    # V1.3 Performance: Show preview only when NOT in slicer mode (slicer has its own player)
+    if not st.session_state.enable_slicer:
+        st.markdown("#### 🎵 Audio Preview (with Zoom)")
+        wavesurfer_player(
+            audio_path=current_pair.audio.path,
+            height=150,
+            key=f"labeling_{current_idx}",
+            enable_regions=False
+        )
     
     # Validation helpers
     validator = StemValidator()
@@ -742,16 +903,17 @@ def render_step2_labeling():
         
         with col1:
             try:
-                fig = plot_waveform_with_grid(
-                    current_pair.audio.path,
-                    current_pair.midi.path if current_pair.midi else None,
-                    bpm=st.session_state.track_metadata.get('bpm'),
-                    start_bars=start_bars,
-                    end_bars=end_bars
+                # V1.3: Interactive WaveSurfer with region selection for Loop Slicer
+                st.markdown("#### Interactive Waveform (Drag region to adjust slice)")
+                wavesurfer_player(
+                    audio_path=current_pair.audio.path,
+                    height=200,
+                    key=f"slicer_{current_idx}",
+                    enable_regions=True,
+                    start_bar=start_bars,
+                    end_bar=end_bars,
+                    bpm=st.session_state.track_metadata.get('bpm', 140)
                 )
-                if fig:
-                    st.pyplot(fig)
-                    plt.close(fig)
             except Exception as e:
                 st.error(f"Cannot display waveform: {str(e)}")
     
