@@ -376,9 +376,9 @@ class ExportSession:
         group: str,
         instrument: str,
         layer: str
-    ):
+    ) -> tuple:
         """
-        Export a complete stem (audio + MIDI)
+        Export a complete stem (audio + MIDI) with auto-increment duplicate handling
         
         Args:
             audio_data: Audio data array
@@ -388,26 +388,84 @@ class ExportSession:
             group: Stem group
             instrument: Stem instrument
             layer: Stem layer
+            
+        Returns:
+            Tuple of (audio_filename, midi_filename)
         """
         if self.track_path is None:
             raise ValueError("No track started. Call start_track() first.")
         
-        # Export audio
-        audio_path = self.exporter.export_audio(
-            audio_data, sample_rate, self.track_path,
-            uid, group, instrument, layer
+        # Generate base filename
+        group_lower = group.lower()
+        instrument_lower = instrument.lower().replace(' ', '_')
+        layer_lower = layer.lower()
+        
+        base_name = f"{uid}_{group_lower}_{instrument_lower}_{layer_lower}"
+        audio_filename = f"{base_name}.wav"
+        
+        # V2: Auto-increment duplicate handling for audio
+        audio_dir = self.track_path / "Audio" if group_lower != "mix" else self.track_path / "Masters"
+        audio_dir.mkdir(exist_ok=True, parents=True)
+        audio_path = audio_dir / audio_filename
+        
+        counter = 1
+        while audio_path.exists():
+            audio_filename = f"{base_name}_{counter}.wav"
+            audio_path = audio_dir / audio_filename
+            counter += 1
+        
+        # Save audio
+        self.exporter.audio_processor.save_audio(
+            audio_data,
+            sample_rate,
+            audio_path,
+            bit_depth=config.DEFAULT_BIT_DEPTH
         )
         self.exported_files.append(audio_path)
-        print(f"  ✓ Exported audio: {audio_path.name}")
+        print(f"  ✓ Exported audio: {audio_filename}")
         
         # Export MIDI if present
+        midi_filename = None
         if midi_data is not None:
-            midi_path = self.exporter.export_midi(
-                midi_data, self.track_path,
-                uid, group, instrument
-            )
+            midi_dir = self.track_path / "MIDI"
+            midi_dir.mkdir(exist_ok=True, parents=True)
+            
+            # V2: Auto-increment duplicate handling for MIDI
+            midi_base = f"{uid}_midi_{group_lower}_{instrument_lower}"
+            
+            # If audio was incremented, mirror that on MIDI
+            if counter > 1:
+                midi_filename = f"{midi_base}_{counter - 1}.mid"
+            else:
+                midi_filename = f"{midi_base}.mid"
+            
+            midi_path = midi_dir / midi_filename
+            
+            # Additional check for MIDI duplicates
+            midi_counter = counter - 1 if counter > 1 else 0
+            while midi_path.exists():
+                midi_counter += 1
+                midi_filename = f"{midi_base}_{midi_counter}.mid" if midi_counter > 0 else f"{midi_base}.mid"
+                midi_path = midi_dir / midi_filename
+            
+            # V2.1 FIX: Byte-for-byte copy for Full Track Mode (Path objects)
+            # Full Track Mode: midi_data is Path → copy original bytes (no processing)
+            # Loop Slicer Mode: midi_data is PrettyMIDI object → write processed MIDI
+            if isinstance(midi_data, (str, Path)):
+                # Full Track Mode: Byte-for-byte copy (preserves timing perfectly)
+                import shutil
+                src = Path(midi_data)
+                shutil.copy2(src, midi_path)
+            elif hasattr(midi_data, "write"):
+                # Loop Slicer Mode: Write processed MIDI object
+                midi_data.write(str(midi_path))
+            else:
+                raise TypeError(f"Unsupported midi_data type: {type(midi_data)}")
+            
             self.exported_files.append(midi_path)
-            print(f"  ✓ Exported MIDI: {midi_path.name}")
+            print(f"  ✓ Exported MIDI: {midi_filename}")
+        
+        return audio_filename, midi_filename
     
     def finalize_track(self, metadata: TrackMetadata):
         """

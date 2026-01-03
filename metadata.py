@@ -222,10 +222,17 @@ class MetadataGenerator:
 
 
 class StemValidator:
-    """Validates stem labeling and processing rules"""
+    """Validates stem labeling and processing rules (V2: Config-driven)"""
     
-    @staticmethod
-    def should_force_mono(group: str, instrument: str) -> bool:
+    def __init__(self):
+        """Initialize validator with config-driven rules"""
+        # Load mono/stereo rules from config
+        self.force_mono_instruments = set(config.FORCE_MONO_INSTRUMENTS)
+        self.keep_stereo_groups = set(config.KEEP_STEREO_GROUPS)
+        self.keep_stereo_instruments = set(config.KEEP_STEREO_INSTRUMENTS)
+        self.midi_required_groups = set(config.REQUIRE_MIDI_GROUPS)
+    
+    def should_force_mono(self, group: str, instrument: str) -> bool:
         """
         Determine if a stem should be forced to mono
         
@@ -237,7 +244,7 @@ class StemValidator:
             True if should be mono
         """
         # Check force mono instruments
-        if instrument in config.FORCE_MONO_INSTRUMENTS:
+        if instrument in self.force_mono_instruments:
             return True
         
         # Lead vocals should be mono
@@ -250,8 +257,7 @@ class StemValidator:
         
         return False
     
-    @staticmethod
-    def should_keep_stereo(group: str, instrument: str) -> bool:
+    def should_keep_stereo(self, group: str, instrument: str) -> bool:
         """
         Determine if a stem should keep stereo
         
@@ -263,17 +269,16 @@ class StemValidator:
             True if should keep stereo
         """
         # FX and Mix groups stay stereo
-        if group in config.KEEP_STEREO_GROUPS:
+        if group in self.keep_stereo_groups:
             return True
         
         # Specific instruments stay stereo
-        if instrument in config.KEEP_STEREO_INSTRUMENTS:
+        if instrument in self.keep_stereo_instruments:
             return True
         
         return False
     
-    @staticmethod
-    def requires_midi(group: str) -> bool:
+    def requires_midi(self, group: str) -> bool:
         """
         Check if a group requires MIDI pairing
         
@@ -283,10 +288,10 @@ class StemValidator:
         Returns:
             True if MIDI is required
         """
-        return group in config.REQUIRE_MIDI_GROUPS
+        return group in self.midi_required_groups
     
-    @staticmethod
     def validate_stem(
+        self,
         group: str,
         instrument: str,
         layer: str,
@@ -309,12 +314,12 @@ class StemValidator:
         warnings = []
         
         # Check MIDI requirement
-        if StemValidator.requires_midi(group) and not has_midi:
+        if self.requires_midi(group) and not has_midi:
             warnings.append(f"⚠ {group} stems typically require MIDI pairing")
         
         # Check mono/stereo rules
-        should_be_mono = StemValidator.should_force_mono(group, instrument)
-        should_be_stereo = StemValidator.should_keep_stereo(group, instrument)
+        should_be_mono = self.should_force_mono(group, instrument)
+        should_be_stereo = self.should_keep_stereo(group, instrument)
         
         if should_be_mono and not is_mono:
             warnings.append(f"⚠ {instrument} should be MONO")
@@ -332,6 +337,25 @@ class StemValidator:
             warnings.append(f"⚠ '{layer}' is not a standard layer type")
         
         return warnings
+    
+    # V2: Keep static methods for backwards compatibility
+    @staticmethod
+    def should_force_mono_static(group: str, instrument: str) -> bool:
+        """Static version for backwards compatibility"""
+        validator = StemValidator()
+        return validator.should_force_mono(group, instrument)
+    
+    @staticmethod
+    def should_keep_stereo_static(group: str, instrument: str) -> bool:
+        """Static version for backwards compatibility"""
+        validator = StemValidator()
+        return validator.should_keep_stereo(group, instrument)
+    
+    @staticmethod
+    def requires_midi_static(group: str) -> bool:
+        """Static version for backwards compatibility"""
+        validator = StemValidator()
+        return validator.requires_midi(group)
 
 
 if __name__ == "__main__":

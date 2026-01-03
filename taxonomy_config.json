@@ -1,0 +1,199 @@
+{
+  "parent_genres": {
+    "house": "House",
+    "techno": "Techno",
+    "bass_music": "Bass Music",
+    "trance": "Trance",
+    "pop_dance": "Pop/Dance",
+    "other": "Other"
+  },
+  "sub_genres": {
+    "house": [
+      "Tech House",
+      "Deep House",
+      "Bass House",
+      "Progressive House",
+      "Future House",
+      "Electro House",
+      "Big Room"
+    ],
+    "techno": [
+      "Peak Time",
+      "Melodic Techno",
+      "Hard Techno",
+      "Industrial",
+      "Minimal"
+    ],
+    "bass_music": [
+      "Trap Festival",
+      "Dubstep",
+      "Future Bass",
+      "Midtempo",
+      "Drum & Bass",
+      "Halftime"
+    ],
+    "trance": [
+      "Uplifting",
+      "Progressive Trance",
+      "Psy Trance",
+      "Vocal Trance"
+    ],
+    "pop_dance": [
+      "Pop",
+      "Dance Pop",
+      "Future Pop",
+      "Indie Dance"
+    ],
+    "other": [
+      "Experimental",
+      "Ambient",
+      "Breaks",
+      "Garage",
+      "Other"
+    ]
+  },
+  "energy_levels": [
+    "1_Low",
+    "2_MedLow",
+    "3_Medium",
+    "4_High",
+    "5_Max"
+  ],
+  "moods": [
+    "Euphoric",
+    "Dark",
+    "Sad",
+    "Happy",
+    "Aggressive",
+    "Sexy",
+    "Chill",
+    "Quirky",
+    "Epic",
+    "Tense"
+  ],
+  "vocal_rights": [
+    "Exclusive",
+    "Royalty_Free"
+  ],
+  "groups": [
+    "Drums",
+    "Bass",
+    "Synth",
+    "Vocal",
+    "FX",
+    "Instruments",
+    "Mix"
+  ],
+  "instruments": {
+    "Drums": [
+      "Kick",
+      "Snare",
+      "Clap",
+      "Hat_Closed",
+      "Hat_Open",
+      "Crash",
+      "Ride",
+      "Tom",
+      "Percussion",
+      "Top_Loop",
+      "Drum_Loop",
+      "Fill",
+      "Other"
+    ],
+    "Bass": [
+      "Sub",
+      "Mid_Bass",
+      "Reese",
+      "Pluck",
+      "Wobble",
+      "808",
+      "Acid",
+      "Other"
+    ],
+    "Synth": [
+      "Lead",
+      "Chord",
+      "Pad",
+      "Arp",
+      "Pluck",
+      "Stab",
+      "Other"
+    ],
+    "Instruments": [
+      "Piano",
+      "Guitar",
+      "Strings",
+      "Brass",
+      "Mallets",
+      "Other"
+    ],
+    "Vocal": [
+      "Lead",
+      "Double",
+      "Harmony",
+      "Adlib",
+      "Choir",
+      "Vocal_Chops",
+      "Speech",
+      "Other"
+    ],
+    "FX": [
+      "Riser",
+      "Downlifter",
+      "Impact",
+      "Noise",
+      "Ambience",
+      "Foley",
+      "Other"
+    ],
+    "Mix": [
+      "Master",
+      "Premaster",
+      "Instrumental",
+      "Other"
+    ]
+  },
+  "layers": [
+    "Main",
+    "Layer1",
+    "Layer2",
+    "Layer3",
+    "Layer4",
+    "Top",
+    "Texture",
+    "Dry",
+    "Wet",
+    "One_Shot",
+    "Loop",
+    "Roll"
+  ],
+  "force_mono_instruments": [
+    "Kick",
+    "Snare",
+    "Sub",
+    "Lead"
+  ],
+  "keep_stereo_groups": [
+    "FX",
+    "Mix"
+  ],
+  "keep_stereo_instruments": [
+    "Pad",
+    "Ambience",
+    "Crash",
+    "Ride",
+    "Chord",
+    "Arp"
+  ],
+  "midi_required_groups": [
+    "Bass",
+    "Synth",
+    "Instruments"
+  ],
+  "midi_optional_groups": [
+    "Drums",
+    "FX",
+    "Vocal",
+    "Mix"
+  ]
+}

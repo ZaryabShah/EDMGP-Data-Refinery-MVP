@@ -1,107 +1,48 @@
 """
 Configuration file for EDMGP Data Refinery App
 Contains all taxonomies, validation rules, and constants
+V2: Loads taxonomy from external JSON file for dynamic updates
 """
 
-# TAXONOMY DEFINITIONS (From MASTER TAXONOMY LIST - V1.1)
+import json
+from pathlib import Path
+
+# V2: Load taxonomy from external JSON file
+TAXONOMY_PATH = Path(__file__).parent / "taxonomy_config.json"
+
+try:
+    with open(TAXONOMY_PATH, "r", encoding="utf-8") as f:
+        _TAXONOMY = json.load(f)
+except FileNotFoundError:
+    raise FileNotFoundError(
+        f"taxonomy_config.json not found at {TAXONOMY_PATH}. "
+        "Please ensure the file exists in the project root."
+    )
+
+# TAXONOMY DEFINITIONS (Loaded from taxonomy_config.json)
 
 # Parent/Child Genre Structure
-PARENT_GENRES = {
-    "house": "House",
-    "techno": "Techno",
-    "bass_music": "Bass Music",
-    "trance": "Trance",
-    "pop_dance": "Pop/Dance",
-    "other": "Other"
-}
+PARENT_GENRES = _TAXONOMY["parent_genres"]
+SUB_GENRES = _TAXONOMY["sub_genres"]
 
-SUB_GENRES = {
-    "house": [
-        "Tech House", "Deep House", "Bass House", "Progressive House", 
-        "Future House", "Electro House", "Big Room"
-    ],
-    "techno": [
-        "Peak Time", "Melodic Techno", "Hard Techno", "Industrial", "Minimal"
-    ],
-    "bass_music": [
-        "Trap Festival", "Dubstep", "Future Bass", "Midtempo", "Drum & Bass", "Halftime"
-    ],
-    "trance": [
-        "Uplifting", "Progressive Trance", "Psy Trance", "Vocal Trance"
-    ],
-    "pop_dance": [
-        "Pop", "Dance Pop", "Future Pop", "Indie Dance"
-    ],
-    "other": [
-        "Experimental", "Ambient", "Breaks", "Garage", "Other"
-    ]
-}
-
-ENERGY_LEVELS = [
-    "1_Low", "2_MedLow", "3_Medium", "4_High", "5_Max"
-]
-
-MOODS = [
-    "Euphoric", "Dark", "Sad", "Happy", "Aggressive", 
-    "Sexy", "Chill", "Quirky", "Epic", "Tense"
-]
-
-VOCAL_RIGHTS = ["Exclusive", "Royalty_Free"]
+# Track Attributes
+ENERGY_LEVELS = _TAXONOMY["energy_levels"]
+MOODS = _TAXONOMY["moods"]
+VOCAL_RIGHTS = _TAXONOMY["vocal_rights"]
 
 # STEM LABELING TAXONOMY
-GROUPS = ["Drums", "Bass", "Synth", "Vocal", "FX", "Instruments", "Mix"]
+GROUPS = _TAXONOMY["groups"]
+INSTRUMENTS = _TAXONOMY["instruments"]
+LAYERS = _TAXONOMY["layers"]
 
-# Instrument options per group (V1.1 - Added "Other" option)
-INSTRUMENTS = {
-    "Drums": [
-        "Kick", "Snare", "Clap", "Hat_Closed", "Hat_Open", "Crash", 
-        "Ride", "Tom", "Percussion", "Top_Loop", "Drum_Loop", "Fill", "Other"
-    ],
-    "Bass": [
-        "Sub", "Mid_Bass", "Reese", "Pluck", "Wobble", "808", "Acid", "Other"
-    ],
-    "Synth": [
-        "Lead", "Chord", "Pad", "Arp", "Pluck", "Stab", "Other"
-    ],
-    "Instruments": [
-        "Piano", "Guitar", "Strings", "Brass", "Mallets", "Other"
-    ],
-    "Vocal": [
-        "Lead", "Double", "Harmony", "Adlib", "Choir", "Vocal_Chops", "Speech", "Other"
-    ],
-    "FX": [
-        "Riser", "Downlifter", "Impact", "Noise", "Ambience", "Foley", "Other"
-    ],
-    "Mix": [
-        "Master", "Premaster", "Instrumental", "Other"
-    ]
-}
-
-LAYERS = [
-    "Main", "Layer1", "Layer2", "Layer3", "Layer4",
-    "Top", "Texture", "Dry", "Wet", "One_Shot", "Loop", "Roll"
-]
-
-# PROCESSING RULES
-
-# Force mono for these instrument types
-FORCE_MONO_INSTRUMENTS = [
-    "Kick", "Snare", "Sub", "Lead"  # Lead Vocal or Lead Bass
-]
-
-# Keep stereo for these groups
-KEEP_STEREO_GROUPS = ["FX", "Mix"]
-
-# Keep stereo for these instruments
-KEEP_STEREO_INSTRUMENTS = [
-    "Pad", "Ambience", "Crash", "Ride", "Chord", "Arp"
-]
+# PROCESSING RULES (Loaded from JSON)
+FORCE_MONO_INSTRUMENTS = _TAXONOMY["force_mono_instruments"]
+KEEP_STEREO_GROUPS = _TAXONOMY["keep_stereo_groups"]
+KEEP_STEREO_INSTRUMENTS = _TAXONOMY["keep_stereo_instruments"]
 
 # Groups that REQUIRE MIDI pairing (melodic content)
-REQUIRE_MIDI_GROUPS = ["Bass", "Synth", "Instruments"]
-
-# Groups where MIDI is optional
-OPTIONAL_MIDI_GROUPS = ["Drums", "FX", "Vocal", "Mix"]
+REQUIRE_MIDI_GROUPS = _TAXONOMY["midi_required_groups"]
+OPTIONAL_MIDI_GROUPS = _TAXONOMY["midi_optional_groups"]
 
 # AUDIO SPECS
 DEFAULT_SAMPLE_RATE = 44100

@@ -23,6 +23,41 @@ from audio_processing import AudioProcessor, MIDIProcessor, AlignedSlicer
 from metadata import MetadataGenerator, StemValidator
 from export import ExportSession
 
+# V2: MIDI Piano Roll Visualization
+def render_midi_piano_roll(midi_path: Path, width: int = 12, height: int = 3):
+    """
+    Simple piano roll visualization using pretty_midi
+    Renders MIDI notes on a piano roll for visual comparison with audio
+    
+    Args:
+        midi_path: Path to MIDI file
+        width: Figure width in inches
+        height: Figure height in inches
+    """
+    try:
+        import pretty_midi
+    except ImportError:
+        st.info("📦 To see MIDI visualization, install pretty_midi:\n\n`pip install pretty_midi`")
+        return
+    
+    try:
+        pm = pretty_midi.PrettyMIDI(str(midi_path))
+        # 50 frames per second is usually enough for visualization
+        piano_roll = pm.get_piano_roll(fs=50)  # shape: (128, T)
+        
+        fig, ax = plt.subplots(figsize=(width, height))
+        ax.imshow(piano_roll, aspect="auto", origin="lower", cmap="viridis")
+        ax.set_yticks(range(0, 128, 12))
+        ax.set_yticklabels([pretty_midi.note_number_to_name(n) for n in range(0, 128, 12)])
+        ax.set_xlabel("Time (frames @ 50fps)")
+        ax.set_ylabel("Pitch")
+        ax.set_title("MIDI Piano Roll Preview")
+        st.pyplot(fig, use_container_width=True)
+        plt.close(fig)
+    except Exception as e:
+        st.error(f"Error rendering MIDI roll: {e}")
+
+
 # WaveSurfer Audio Player Component
 def wavesurfer_player(audio_path: Path, height: int = 128, key: str = None, enable_regions: bool = False, start_bar: float = 0, end_bar: float = 16, bpm: float = 140):
     """
@@ -721,12 +756,18 @@ def render_step2_labeling():
     with col1:
         if st.button("⬅️ Previous", disabled=(current_idx == 0)):
             st.session_state.current_stem_index = max(0, current_idx - 1)
+            # V2: Reset dropdowns on navigation
+            for key in ["label_group", "label_instrument", "label_layer", "custom_inst_input"]:
+                st.session_state.pop(key, None)
             st.rerun()
     with col3:
         st.markdown(f"### Stem {current_idx + 1} of {total_stems}")
     with col5:
         if st.button("Next ➡️", disabled=(current_idx >= total_stems - 1)):
             st.session_state.current_stem_index = min(total_stems - 1, current_idx + 1)
+            # V2: Reset dropdowns on navigation
+            for key in ["label_group", "label_instrument", "label_layer", "custom_inst_input"]:
+                st.session_state.pop(key, None)
             st.rerun()
     
     st.markdown("---")
@@ -864,6 +905,11 @@ def render_step2_labeling():
             enable_regions=False
         )
     
+    # V2: MIDI Piano Roll Visualization (below audio waveform)
+    if current_pair.midi:
+        st.markdown("#### 🎹 MIDI Preview (Piano Roll)")
+        render_midi_piano_roll(current_pair.midi.path)
+    
     # Validation helpers
     validator = StemValidator()
     col1, col2 = st.columns(2)
@@ -929,10 +975,13 @@ def render_step2_labeling():
             if st.button("Apply Override"):
                 if selected_midi == "❌ No MIDI":
                     st.session_state.manual_overrides[current_pair.audio.filename] = None
+                    msg = f"✅ MIDI override applied: No MIDI"
                 else:
                     midi_file = next((m for m in st.session_state.ingester.midi_files if m.filename == selected_midi), None)
                     st.session_state.manual_overrides[current_pair.audio.filename] = midi_file
-                st.success(f"✅ Override applied: {selected_midi}")
+                    msg = f"✅ MIDI override applied: {selected_midi}"
+                st.success(msg)
+                st.toast(msg, icon="✅")  # V2: Toast notification
                 st.rerun()
 
 
@@ -1085,19 +1134,19 @@ def render_step3_export():
                     sliced_midi = midi_path  # Use original MIDI
                     sample_type = "full_track"
                 
-                # Export
-                export_session.export_stem(sliced_audio, sr, sliced_midi, uid, group, instrument, layer)
+                # Export (V2: now returns actual filenames)
+                audio_filename, midi_filename = export_session.export_stem(sliced_audio, sr, sliced_midi, uid, group, instrument, layer)
                 
                 audio_count += 1
                 if sliced_midi:
                     midi_count += 1
                 
-                # Build stem manifest entry (V1.1)
+                # Build stem manifest entry (V2: use actual filenames from export)
                 validator = StemValidator()
                 is_mono = validator.should_force_mono(group, instrument)
                 
                 stem_entry = {
-                    "filename": f"{uid}_{group.lower()}_{instrument.lower()}_{layer.lower()}.wav",
+                    "filename": audio_filename,  # V2: Use actual filename from export
                     "group": group.lower(),
                     "instrument": instrument.lower(),
                     "layer": layer.lower(),
@@ -1105,8 +1154,8 @@ def render_step3_export():
                     "channels": 1 if is_mono else 2
                 }
                 
-                if sliced_midi:
-                    stem_entry["midi_pair"] = f"{uid}_midi_{group.lower()}_{instrument.lower()}.mid"
+                if midi_filename:
+                    stem_entry["midi_pair"] = midi_filename  # V2: Use actual filename from export
                 
                 stems_manifest.append(stem_entry)
             
