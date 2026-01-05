@@ -192,6 +192,47 @@ class AudioProcessor:
         else:
             return np.mean(audio_data, axis=1)
     
+    def resample_audio(
+        self,
+        audio_data: np.ndarray,
+        orig_sr: int,
+        target_sr: int
+    ) -> np.ndarray:
+        """
+        Resample audio to target sample rate (backward-compatible helper)
+        
+        Args:
+            audio_data: Audio data array
+            orig_sr: Original sample rate
+            target_sr: Target sample rate
+            
+        Returns:
+            Resampled audio array
+        """
+        # No-op if already at target rate
+        if orig_sr == target_sr:
+            return audio_data
+        
+        # Handle mono vs stereo/multi-channel
+        if audio_data.ndim == 1:
+            # Mono: resample directly
+            return librosa.resample(
+                audio_data,
+                orig_sr=orig_sr,
+                target_sr=target_sr
+            )
+        else:
+            # Stereo/multi-channel: resample each channel
+            channels = []
+            for c in range(audio_data.shape[1]):
+                ch_resampled = librosa.resample(
+                    audio_data[:, c],
+                    orig_sr=orig_sr,
+                    target_sr=target_sr
+                )
+                channels.append(ch_resampled)
+            return np.column_stack(channels)
+    
     def save_audio(
         self,
         audio_data: np.ndarray,
@@ -200,28 +241,53 @@ class AudioProcessor:
         bit_depth: int = 24
     ):
         """
-        Save audio to file
+        Save audio to file with format standardization
+        
+        V2.2: Enforces 44.1kHz / 16-bit PCM output for dataset uniformity
+        Handles both mono and stereo/multi-channel audio properly
         
         Args:
-            audio_data: Audio data to save
-            sample_rate: Sample rate
+            audio_data: Audio data to save (1D for mono, 2D for stereo)
+            sample_rate: Sample rate (will be resampled to 44.1kHz if needed)
             output_path: Output file path
-            bit_depth: Bit depth (16 or 24)
+            bit_depth: Bit depth (kept for compatibility, but ignored)
         """
-        # Determine subtype
-        if bit_depth == 16:
-            subtype = 'PCM_16'
-        elif bit_depth == 24:
-            subtype = 'PCM_24'
-        else:
-            subtype = 'PCM_24'  # Default to 24-bit
+        # V2.2: Force standardization to 44.1kHz / 16-bit PCM
+        target_sr = config.DEFAULT_SAMPLE_RATE  # 44100
         
-        # Save audio
+        # 1) Resample to 44.1kHz if needed (handle stereo/multi-channel)
+        if sample_rate != target_sr:
+            if audio_data.ndim == 1:
+                # Mono: resample directly
+                audio_data = librosa.resample(
+                    audio_data,
+                    orig_sr=sample_rate,
+                    target_sr=target_sr
+                )
+            else:
+                # Stereo / multi-channel: resample each channel separately
+                channels = []
+                for c in range(audio_data.shape[1]):
+                    ch_resampled = librosa.resample(
+                        audio_data[:, c],
+                        orig_sr=sample_rate,
+                        target_sr=target_sr
+                    )
+                    channels.append(ch_resampled)
+                audio_data = np.column_stack(channels)
+            sample_rate = target_sr
+        
+        # 2) Normalize to [-1, 1] range for safe PCM_16 conversion
+        max_val = float(np.max(np.abs(audio_data))) if audio_data.size > 0 else 0.0
+        if max_val > 0:
+            audio_data = audio_data / (max_val + 1e-8)  # Prevent clipping
+        
+        # 3) Save as 16-bit PCM (forced standardization)
         sf.write(
             str(output_path),
             audio_data,
             sample_rate,
-            subtype=subtype
+            subtype='PCM_16'  # Always 16-bit PCM for dataset uniformity
         )
 
 

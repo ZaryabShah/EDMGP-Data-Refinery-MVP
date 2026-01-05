@@ -414,12 +414,11 @@ class ExportSession:
             audio_path = audio_dir / audio_filename
             counter += 1
         
-        # Save audio
+        # V2.2: Save audio with format standardization (44.1kHz / 16-bit PCM)
         self.exporter.audio_processor.save_audio(
-            audio_data,
-            sample_rate,
-            audio_path,
-            bit_depth=config.DEFAULT_BIT_DEPTH
+            audio_data=audio_data,
+            sample_rate=sample_rate,
+            output_path=audio_path
         )
         self.exported_files.append(audio_path)
         print(f"  ✓ Exported audio: {audio_filename}")
